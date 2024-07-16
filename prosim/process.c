@@ -45,7 +45,7 @@ extern int process_init(int cpu_quantum) {
  *   none
  */
 static void print_process(context *proc) {
-    printf("%5.5d: process %d %s\n", time, proc->id, states[proc->state]);
+    printf("[%2.2d] %5.5d: process %d %s\n",proc->node, time, proc->id, states[proc->state]);
 }
 
 /* Compute priority of process, depending on whether SJF or priority based scheduling is used

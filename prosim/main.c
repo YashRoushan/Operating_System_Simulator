@@ -4,14 +4,24 @@
 #include <stdlib.h>
 #include "context.h"
 #include "process.h"
+#include <pthread.h>
+
+
+// making a struct to simulate a thread data
+typedef struct {
+    int node_id;
+    context **procs;
+    int num_procs;
+} ThreadData;
 
 int main() {
     int num_procs;
     int quantum;
+    int numNodes;
 
     /* Read in the header of the process description with minimal validation
      */
-    if (scanf("%d %d", &num_procs, &quantum) < 2) {
+    if (scanf("%d %d %d", &num_procs, &quantum, &numNodes) < 3) {
         fprintf(stderr, "Bad input, expecting number of process and quantum size\n");
         return -1;
     }

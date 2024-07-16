@@ -22,6 +22,7 @@ typedef struct context {
     int ip;                     /* index of current primitive being executed */
     int id;                     /* process id */
     int priority;               /* process priority */
+    int node;
     int duration;               /* amount of clock ticks left in current primitive */
     int state;                  /* current state of process: NEW, READY, RUNNING, BLOCKED, FINISHED */
     int enqueue_time;           /* time at which process was added to ready queue */
