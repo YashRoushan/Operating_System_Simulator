@@ -1,17 +1,12 @@
-//
-// Created by Alex Brodsky on 2023-05-07.
-//
 #include <stdlib.h>
 #include <assert.h>
+#include <pthread.h>
 #include "process.h"
 #include "prio_q.h"
 
-//static prio_q_t *blocked;
-//static prio_q_t *ready;
+// Declare the static 'finished' queue and its mutex
 static prio_q_t *finished;
-//static int time = 0;
-//static int next_proc_id = 1;
-
+static pthread_mutex_t finished_mutex_lock = PTHREAD_MUTEX_INITIALIZER;
 
 
 typedef struct {
@@ -117,10 +112,11 @@ static void insert_in_queue(context *proc, int next_op) {
         proc->state = PROC_BLOCKED;
         proc->duration += processes[proc->node -1].time;
         prio_q_add(processes[proc->node-1].blocked, proc, proc->duration);
-    } else {
+    } else if (op == OP_HALT) {
         proc->state = PROC_FINISHED;
-        proc->priority = (processes[proc->node -1].time * 100 * 100) + ((proc->node-1) * 100) + proc->id;
-        prio_q_add(finished, proc, proc->priority);
+        pthread_mutex_lock(&finished_mutex_lock);  // Locking the mutex
+        prio_q_add(finished, proc, actual_priority(proc));
+        pthread_mutex_unlock(&finished_mutex_lock);  // Unlocking the mutex
     }
     print_process(proc);
 }
@@ -207,6 +203,7 @@ extern int process_simulate(context *curr_proc) {
         if (cur == NULL && !prio_q_empty(ready)) {
             cur = prio_q_remove(ready);
             cur->wait_time += time - cur->enqueue_time;
+//            cpu_quantum = processes[curr_proc->node-1].quantum;
             cpu_quantum = processes[cur->node-1].quantum;
             cur->state = PROC_RUNNING;
             print_process(cur);
