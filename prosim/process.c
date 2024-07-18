@@ -42,11 +42,9 @@ extern int process_init(int cpu_quantum, int numNodes) {
     /* Set up the queues and store the quantum
      * Assume the queues will be allocated
      */
-    pthread_mutex_lock(&finished_mutex_lock);
     processes = calloc(numNodes, sizeof (process));
     finished = prio_q_new();
     assert(processes);
-    pthread_mutex_unlock(&finished_mutex_lock);
     for (int i = 0; i < numNodes; ++i) {
         processes[i].quantum = cpu_quantum;
         processes[i].blocked = prio_q_new();
@@ -125,10 +123,10 @@ static void insert_in_queue(context *proc, int next_op) {
         prio_q_add(processes[proc->node-1].blocked, proc, proc->duration);
         pthread_mutex_unlock(&processes[proc->node -1].blocked_mutex);
     } else if (op == OP_HALT) {
+        pthread_mutex_lock(&finished_mutex_lock);
         proc->state = PROC_FINISHED;
-        pthread_mutex_lock(&finished_mutex_lock);  // Locking the mutex
         prio_q_add(finished, proc, actual_priority(proc));
-        pthread_mutex_unlock(&finished_mutex_lock);  // Unlocking the mutex
+        pthread_mutex_unlock(&finished_mutex_lock);
     }
     pthread_mutex_lock(&finished_mutex_lock);
     print_process(proc);
@@ -147,7 +145,9 @@ extern int process_admit(context *proc) {
     proc->id = processes[proc->node -1].next_proc_id;
     processes[proc->node -1].next_proc_id++;
     proc->state = PROC_NEW;
+    pthread_mutex_lock(&finished_mutex_lock);
     print_process(proc);
+    pthread_mutex_unlock(&finished_mutex_lock);
     insert_in_queue(proc, 1);
     return 1;
 }
@@ -177,23 +177,21 @@ extern int process_simulate(context *curr_proc) {
          * If any of the unblocked processes have higher priority than current running process
          *   we will need to preempt the current running process
          */
+            pthread_mutex_lock(&processes[curr_proc->node -1].blocked_mutex);
         while (!prio_q_empty(blocked)) {
             /* We can stop ff process at head of queue should not be unblocked
              */
-            pthread_mutex_lock(&processes[curr_proc->node -1].blocked_mutex);
             context *proc = prio_q_peek(blocked);
-            pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
-            pthread_mutex_lock(&processes[curr_proc->node -1].blocked_mutex);
 
             if (proc->duration > time) {
-                pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
+//                pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
                 break;
             }
 
             /* Move from blocked and reinsert into appropriate queue
              */
             prio_q_remove(blocked);
-            pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
+//            printf("removed from blocked %d\n", proc->node);
             insert_in_queue(proc, 1);
 
             /* preemption is necessary if a process is running, and it has lower priority than
@@ -202,6 +200,7 @@ extern int process_simulate(context *curr_proc) {
             preempt |= cur != NULL && proc->state == PROC_READY &&
                        actual_priority(cur) > actual_priority(proc);
         }
+            pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
 
         /* Step 2: Update current running process
          */
@@ -220,16 +219,17 @@ extern int process_simulate(context *curr_proc) {
         /* Step 3: Select next ready process to run if none are running
          * Be sure to keep track of how long it waited in the ready queue
          */
-        if (cur == NULL && !prio_q_empty(ready)) {
             pthread_mutex_lock(&processes[curr_proc->node - 1].ready_mutex);
+        if (cur == NULL && !prio_q_empty(ready)) {
             cur = prio_q_remove(ready);
             cur->wait_time += time - cur->enqueue_time;
-//            cpu_quantum = processes[curr_proc->node-1].quantum;
             cpu_quantum = processes[cur->node-1].quantum;
             cur->state = PROC_RUNNING;
-            pthread_mutex_unlock(&processes[curr_proc->node - 1].ready_mutex);
+            pthread_mutex_lock(&finished_mutex_lock);
             print_process(cur);
+            pthread_mutex_unlock(&finished_mutex_lock);
         }
+            pthread_mutex_unlock(&processes[curr_proc->node - 1].ready_mutex);
 
         /* next clock tick
          */
