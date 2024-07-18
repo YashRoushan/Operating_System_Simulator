@@ -4,7 +4,6 @@
 #include "process.h"
 #include "prio_q.h"
 
-// Declare the static 'finished' queue and its mutex
 static prio_q_t *finished;
 static pthread_mutex_t finished_mutex_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -12,6 +11,8 @@ static pthread_mutex_t finished_mutex_lock = PTHREAD_MUTEX_INITIALIZER;
 typedef struct {
     prio_q_t *blocked;
     prio_q_t *ready;
+    pthread_mutex_t blocked_mutex;
+    pthread_mutex_t ready_mutex;
     int time;
     int next_proc_id;
     int quantum;
@@ -41,13 +42,18 @@ extern int process_init(int cpu_quantum, int numNodes) {
     /* Set up the queues and store the quantum
      * Assume the queues will be allocated
      */
+    pthread_mutex_lock(&finished_mutex_lock);
     processes = calloc(numNodes, sizeof (process));
     finished = prio_q_new();
     assert(processes);
+    pthread_mutex_unlock(&finished_mutex_lock);
     for (int i = 0; i < numNodes; ++i) {
         processes[i].quantum = cpu_quantum;
         processes[i].blocked = prio_q_new();
         processes[i].ready = prio_q_new();
+        // initializing the mutex locks
+        pthread_mutex_init(&processes[i].blocked_mutex, NULL);
+        pthread_mutex_init(&processes[i].ready_mutex, NULL);
         processes[i].time = 0;
         processes[i].next_proc_id = 1;
     }
@@ -61,7 +67,9 @@ extern int process_init(int cpu_quantum, int numNodes) {
  *   none
  */
 static void print_process(context *proc) {
+//    pthread_mutex_lock(&finished_mutex_lock);
     printf("[%2.2d] %5.5d: process %d %s\n",proc->node, processes[proc->node-1].time, proc->id, states[proc->state]);
+//    pthread_mutex_unlock(&finished_mutex_lock);
 }
 
 /* Compute priority of process, depending on whether SJF or priority based scheduling is used
@@ -102,23 +110,29 @@ static void insert_in_queue(context *proc, int next_op) {
      * 3. If HALT, process is not queued
      */
     if (op == OP_DOOP) {
+        pthread_mutex_lock(&processes[proc->node -1].ready_mutex);
         proc->state = PROC_READY;
         prio_q_add(processes[proc->node -1].ready, proc, actual_priority(proc));
+        pthread_mutex_unlock(&processes[proc->node -1].ready_mutex);
         proc->wait_count++;
         proc->enqueue_time = processes[proc->node -1].time;
     } else if (op == OP_BLOCK) {
         /* Use the duration field of the process to store their wake-up time.
          */
+        pthread_mutex_lock(&processes[proc->node -1].blocked_mutex);
         proc->state = PROC_BLOCKED;
         proc->duration += processes[proc->node -1].time;
         prio_q_add(processes[proc->node-1].blocked, proc, proc->duration);
+        pthread_mutex_unlock(&processes[proc->node -1].blocked_mutex);
     } else if (op == OP_HALT) {
         proc->state = PROC_FINISHED;
         pthread_mutex_lock(&finished_mutex_lock);  // Locking the mutex
         prio_q_add(finished, proc, actual_priority(proc));
         pthread_mutex_unlock(&finished_mutex_lock);  // Unlocking the mutex
     }
+    pthread_mutex_lock(&finished_mutex_lock);
     print_process(proc);
+    pthread_mutex_unlock(&finished_mutex_lock);
 }
 
 /* Admit a process into the simulation
@@ -166,14 +180,20 @@ extern int process_simulate(context *curr_proc) {
         while (!prio_q_empty(blocked)) {
             /* We can stop ff process at head of queue should not be unblocked
              */
+            pthread_mutex_lock(&processes[curr_proc->node -1].blocked_mutex);
             context *proc = prio_q_peek(blocked);
+            pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
+            pthread_mutex_lock(&processes[curr_proc->node -1].blocked_mutex);
+
             if (proc->duration > time) {
+                pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
                 break;
             }
 
             /* Move from blocked and reinsert into appropriate queue
              */
             prio_q_remove(blocked);
+            pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
             insert_in_queue(proc, 1);
 
             /* preemption is necessary if a process is running, and it has lower priority than
@@ -201,11 +221,13 @@ extern int process_simulate(context *curr_proc) {
          * Be sure to keep track of how long it waited in the ready queue
          */
         if (cur == NULL && !prio_q_empty(ready)) {
+            pthread_mutex_lock(&processes[curr_proc->node - 1].ready_mutex);
             cur = prio_q_remove(ready);
             cur->wait_time += time - cur->enqueue_time;
 //            cpu_quantum = processes[curr_proc->node-1].quantum;
             cpu_quantum = processes[cur->node-1].quantum;
             cur->state = PROC_RUNNING;
+            pthread_mutex_unlock(&processes[curr_proc->node - 1].ready_mutex);
             print_process(cur);
         }
 
