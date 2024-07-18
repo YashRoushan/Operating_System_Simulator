@@ -182,7 +182,8 @@ extern int context_cur_op(context *cur) {
  *   none
  */
 extern void context_stats(context *cur, FILE *fout) {
-    fprintf(fout,"Process %d: Run %d, Block %d, Wait %d\n", cur->id,
+    int totalTime = cur->doop_time + cur->wait_time + cur->block_time;
+    fprintf(fout,"| %5.5d | Proc %2.2d.%2.2d Run %d, Block %d, Wait %d\n",totalTime, cur->node, cur->id,
             cur->doop_time, cur->block_time, cur->wait_time);
 }
 
