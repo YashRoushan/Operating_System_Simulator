@@ -1,14 +1,26 @@
 //
 // Created by Alex Brodsky on 2023-05-07.
 //
-
+#include <stdlib.h>
+#include <assert.h>
 #include "process.h"
 #include "prio_q.h"
 
-static prio_q_t *blocked;
-static prio_q_t *ready;
-static int time = 0;
-static int next_proc_id = 1;
+//static prio_q_t *blocked;
+//static prio_q_t *ready;
+static prio_q_t *finished;
+//static int time = 0;
+//static int next_proc_id = 1;
+
+
+
+typedef struct {
+    prio_q_t *blocked;
+    prio_q_t *ready;
+    int time;
+    int next_proc_id;
+    int quantum;
+} process;
 
 enum {
     PROC_NEW = 0,
@@ -20,7 +32,7 @@ enum {
 
 static char *states[] = {"new", "ready", "running", "blocked", "finished"};
 
-static int quantum;
+//static int quantum;
 
 /* Initialize the simulation
  * @params:
@@ -28,13 +40,22 @@ static int quantum;
  * @returns:
  *   returns 1
  */
-extern int process_init(int cpu_quantum) {
+
+static process * processes;
+extern int process_init(int cpu_quantum, int numNodes) {
     /* Set up the queues and store the quantum
      * Assume the queues will be allocated
      */
-    quantum = cpu_quantum;
-    blocked = prio_q_new();
-    ready = prio_q_new();
+    processes = calloc(numNodes, sizeof (process));
+    finished = prio_q_new();
+    assert(processes);
+    for (int i = 0; i < numNodes; ++i) {
+        processes[i].quantum = cpu_quantum;
+        processes[i].blocked = prio_q_new();
+        processes[i].ready = prio_q_new();
+        processes[i].time = 0;
+        processes[i].next_proc_id = 1;
+    }
     return 1;
 }
 
@@ -45,7 +66,7 @@ extern int process_init(int cpu_quantum) {
  *   none
  */
 static void print_process(context *proc) {
-    printf("[%2.2d] %5.5d: process %d %s\n",proc->node, time, proc->id, states[proc->state]);
+    printf("[%2.2d] %5.5d: process %d %s\n",proc->node, processes[proc->node-1].time, proc->id, states[proc->state]);
 }
 
 /* Compute priority of process, depending on whether SJF or priority based scheduling is used
@@ -87,17 +108,19 @@ static void insert_in_queue(context *proc, int next_op) {
      */
     if (op == OP_DOOP) {
         proc->state = PROC_READY;
-        prio_q_add(ready, proc, actual_priority(proc));
+        prio_q_add(processes[proc->node -1].ready, proc, actual_priority(proc));
         proc->wait_count++;
-        proc->enqueue_time = time;
+        proc->enqueue_time = processes[proc->node -1].time;
     } else if (op == OP_BLOCK) {
         /* Use the duration field of the process to store their wake-up time.
          */
         proc->state = PROC_BLOCKED;
-        proc->duration += time;
-        prio_q_add(blocked, proc, proc->duration);
+        proc->duration += processes[proc->node -1].time;
+        prio_q_add(processes[proc->node-1].blocked, proc, proc->duration);
     } else {
         proc->state = PROC_FINISHED;
+        proc->priority = (processes[proc->node -1].time * 100 * 100) + ((proc->node-1) * 100) + proc->id;
+        prio_q_add(finished, proc, proc->priority);
     }
     print_process(proc);
 }
@@ -111,8 +134,8 @@ static void insert_in_queue(context *proc, int next_op) {
 extern int process_admit(context *proc) {
     /* Use a static variable to assign each process a unique process id.
      */
-    proc->id = next_proc_id;
-    next_proc_id++;
+    proc->id = processes[proc->node -1].next_proc_id;
+    processes[proc->node -1].next_proc_id++;
     proc->state = PROC_NEW;
     print_process(proc);
     insert_in_queue(proc, 1);
@@ -125,9 +148,14 @@ extern int process_admit(context *proc) {
  * @returns:
  *   returns 1
  */
-extern int process_simulate() {
+extern int process_simulate(context *curr_proc) {
     context *cur = NULL;
     int cpu_quantum;
+
+    prio_q_t *ready = processes[curr_proc->node-1].ready;
+    prio_q_t *blocked = processes[curr_proc->node-1].blocked;
+    int time = processes[curr_proc->node-1].time;
+
 
     /* We can only stop when all processes are in the finished state
      * no processes are readdy, running, or blocked
@@ -179,7 +207,7 @@ extern int process_simulate() {
         if (cur == NULL && !prio_q_empty(ready)) {
             cur = prio_q_remove(ready);
             cur->wait_time += time - cur->enqueue_time;
-            cpu_quantum = quantum;
+            cpu_quantum = processes[cur->node-1].quantum;
             cur->state = PROC_RUNNING;
             print_process(cur);
         }
@@ -187,6 +215,7 @@ extern int process_simulate() {
         /* next clock tick
          */
         time++;
+        processes[curr_proc->node-1].time = time;
     }
 
     return 1;

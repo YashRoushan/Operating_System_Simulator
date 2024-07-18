@@ -5,6 +5,10 @@
 #ifndef PROSIM_PROCESS_H
 #define PROSIM_PROCESS_H
 #include "context.h"
+#include "prio_q.h"
+
+
+
 
 /* Initialize the simulation
  * @params:
@@ -12,7 +16,7 @@
  * @returns:
  *   returns 1
  */
-extern int process_init(int cpu_quantum);
+extern int process_init(int cpu_quantum, int numNodes);
 
 /* Admit a process into the simulation
  * @params:
@@ -28,6 +32,6 @@ extern int process_admit(context *proc);
  * @returns:
  *   returns 1
  */
-extern int process_simulate();
+extern int process_simulate(context *proc);
 
 #endif //PROSIM_PROCESS_H

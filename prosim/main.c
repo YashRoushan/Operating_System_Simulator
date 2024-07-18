@@ -12,7 +12,16 @@ typedef struct {
     int node_id;
     context **procs;
     int num_procs;
+    int quantum;
 } ThreadData;
+
+void * simulateProcesses(void *arg){
+    ThreadData *threadData = (ThreadData *) arg;
+    for (int i = 0; i < threadData->num_procs; ++i) {
+        process_simulate(threadData->procs[i]);
+    }
+    return NULL;
+}
 
 int main() {
     int num_procs;
@@ -26,11 +35,15 @@ int main() {
         return -1;
     }
 
+    pthread_t *threads = malloc(numNodes * sizeof (pthread_t));
+//    pthread_t threads[numNodes];
+    ThreadData * thread_data = malloc(numNodes * sizeof (ThreadData));
+
     /* We use an array of pointers to contexts to track the processes.
      */
     context **procs  = calloc(num_procs, sizeof(context *));
 
-    process_init(quantum);
+    process_init(quantum, numNodes); // we will do this in a separate method
 
     /* Load and admit each process, if an error occurs, we just give up.
      */
@@ -45,7 +58,24 @@ int main() {
 
     /* All the magic happens in here
      */
-    process_simulate();
+//    process_simulate();
+
+//    filling data in thread
+    for (int i = 0; i < numNodes; ++i) {
+        thread_data[i].node_id = i+1;
+        thread_data[i].procs = procs;
+        thread_data[i].num_procs = num_procs;
+        thread_data[i].quantum = quantum;
+
+        if(pthread_create(&threads[i], NULL, simulateProcesses, &thread_data[i])){
+            fprintf(stderr, "Error in executing threads\n");
+            return -1;
+        }
+    }
+
+    for (int i = 0; i < numNodes; ++i) {
+        pthread_join(threads[i], NULL);
+    }
 
     /* Output the statistics for processes in order of amdmission.
      */
@@ -53,5 +83,10 @@ int main() {
         context_stats(procs[i], stdout);
     }
 
+    free(threads);
+    free(thread_data);
+    for (int i = 0; i < num_procs; ++i) {
+        free(procs[i]);
+    }
     return 0;
 }
