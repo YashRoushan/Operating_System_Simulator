@@ -11,7 +11,6 @@
 typedef struct {
     int node_id;
     context **procs;
-    pthread_mutex_t *threadMutex;
     int num_procs;
     int quantum;
 } ThreadData;
@@ -19,9 +18,7 @@ typedef struct {
 void * simulateProcesses(void *arg){
     ThreadData *threadData = (ThreadData *) arg;
     for (int i = 0; i < threadData->num_procs; ++i) {
-        pthread_mutex_lock(&threadData->threadMutex[i]);
         process_simulate(threadData->procs[i]);
-        pthread_mutex_unlock(&threadData->threadMutex[i]);
     }
     return NULL;
 }
@@ -69,8 +66,7 @@ int main() {
         thread_data[i].procs = procs;
         thread_data[i].num_procs = num_procs;
         thread_data[i].quantum = quantum;
-        thread_data[i].threadMutex = malloc(sizeof(pthread_mutex_t));
-        pthread_mutex_init(&thread_data->threadMutex[i], NULL);
+
         if(pthread_create(&threads[i], NULL, simulateProcesses, &thread_data[i])){
             fprintf(stderr, "Error in executing threads\n");
             return -1;
