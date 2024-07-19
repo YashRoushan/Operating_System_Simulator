@@ -6,9 +6,19 @@
 #define PROSIM_PROCESS_H
 #include "context.h"
 #include "prio_q.h"
+#include "pthread.h"
 
 
-
+// made a struct to make multiple instances of processes in the scheduler
+typedef struct {
+    prio_q_t *blocked;
+    prio_q_t *ready;
+    pthread_mutex_t blocked_mutex;
+    pthread_mutex_t ready_mutex;
+    int time;
+    int next_proc_id;
+    int quantum;
+} process;
 
 /* Initialize the simulation
  * @params:

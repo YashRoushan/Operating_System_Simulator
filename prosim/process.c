@@ -10,16 +10,16 @@ static prio_q_t *finished;
 //initializing a mutex lock
 static pthread_mutex_t finished_mutex_lock = PTHREAD_MUTEX_INITIALIZER;
 
-// made a struct to make multiple instances of processes in the scheduler
-typedef struct {
-    prio_q_t *blocked;
-    prio_q_t *ready;
-    pthread_mutex_t blocked_mutex;
-    pthread_mutex_t ready_mutex;
-    int time;
-    int next_proc_id;
-    int quantum;
-} process;
+// ADDED FOR YOUR REFERENCE (DEFINED IN PROCESS.H)
+//typedef struct {
+//    prio_q_t *blocked;
+//    prio_q_t *ready;
+//    pthread_mutex_t blocked_mutex;
+//    pthread_mutex_t ready_mutex;
+//    int time;
+//    int next_proc_id;
+//    int quantum;
+//} process;
 
 enum {
     PROC_NEW = 0,

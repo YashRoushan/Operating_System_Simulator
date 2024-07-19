@@ -83,11 +83,11 @@ int main() {
     for (int i = 0; i < numNodes; ++i) {
         pthread_join(threads[i], NULL);
     }
-
     /* Output the statistics for processes in order of admission in the finished priority queue.
      */
     context_stats(stdout);
 
+    // freeing all the memory
     free(threads);
     free(thread_data);
     for (int i = 0; i < num_procs; ++i) {
