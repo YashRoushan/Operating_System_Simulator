@@ -10,7 +10,7 @@ static prio_q_t *finished;
 //initializing a mutex lock
 static pthread_mutex_t finished_mutex_lock = PTHREAD_MUTEX_INITIALIZER;
 
-// made a struct to make multiple instances of processes
+// made a struct to make multiple instances of processes in the scheduler
 typedef struct {
     prio_q_t *blocked;
     prio_q_t *ready;
@@ -31,7 +31,6 @@ enum {
 
 static char *states[] = {"new", "ready", "running", "blocked", "finished"};
 
-//static int quantum;
 
 /* Initialize the simulation
  * @params:
@@ -40,7 +39,7 @@ static char *states[] = {"new", "ready", "running", "blocked", "finished"};
  *   returns 1
  */
 
-// made a static priority queue to store finished processes
+// made a static priority queue to store processes
 static process * processes;
 
 extern int process_init(int cpu_quantum, int numNodes) {
@@ -57,6 +56,8 @@ extern int process_init(int cpu_quantum, int numNodes) {
         // initializing the mutex locks
         pthread_mutex_init(&processes[i].blocked_mutex, NULL);
         pthread_mutex_init(&processes[i].ready_mutex, NULL);
+
+        // assigning time and proc_id to the processes;
         processes[i].time = 0;
         processes[i].next_proc_id = 1;
     }
@@ -108,7 +109,7 @@ static void insert_in_queue(context *proc, int next_op) {
     /* 3 cases:
      * 1. If DOOP, process goes into ready queue
      * 2. If BLOCK, process goes into blocked queue
-     * 3. If HALT, process is not queued
+     * 3. If HALT, process goes to the static finished queue
      */
     if (op == OP_DOOP) {
         proc->state = PROC_READY;
@@ -122,12 +123,19 @@ static void insert_in_queue(context *proc, int next_op) {
         proc->duration += processes[proc->node -1].time;
         prio_q_add(processes[proc->node-1].blocked, proc, proc->duration);
     } else {
+        // adding locks to ensure that the static finished queue does not get corrupted
         pthread_mutex_lock(&finished_mutex_lock);
         proc->state = PROC_FINISHED;
+
+        // calculating priority as advised in the assignment pdf
         int proc_priority = (processes[proc->node -1].time * 10000) + (proc->node * 100) + proc->id;
+
+        // adding processes in the finished queue once it is finished
         prio_q_add(finished, proc, proc_priority);
         pthread_mutex_unlock(&finished_mutex_lock);
     }
+
+    // printing the current stats of the process
     print_process(proc);
 }
 
@@ -158,6 +166,8 @@ extern int process_simulate(context *curr_proc) {
     context *cur = NULL;
     int cpu_quantum;
 
+    // naming the priority queues in the processes queue so that the rest of
+    // the code simulate professor Brodsky's code
     prio_q_t *ready = processes[curr_proc->node-1].ready;
     prio_q_t *blocked = processes[curr_proc->node-1].blocked;
 
@@ -172,18 +182,25 @@ extern int process_simulate(context *curr_proc) {
          * If any of the unblocked processes have higher priority than current running process
          *   we will need to preempt the current running process
          */
+
+        // putting lock for the ready queue so that it is not accessed concurrently
+        // otherwise the code will fail as we are trying to remove from a null queue
+        // putting the lock before the while statement since the while statement is peeking in the queue
+        // and if there is concurrent access to the queue then the !prio_q_empty(blocked) might
+        // give you true but be false as some other thread deleted the process
         pthread_mutex_lock(&processes[curr_proc->node -1].blocked_mutex);
+
         while (!prio_q_empty(blocked)) {
             /* We can stop ff process at head of queue should not be unblocked
              */
             context *proc = prio_q_peek(blocked);
-
             if (proc->duration > processes[curr_proc->node-1].time) {
                 break;
             }
 
             /* Move from blocked and reinsert into appropriate queue
              */
+            // added locks around so that removing from the queue can be done safely
             prio_q_remove(blocked);
             insert_in_queue(proc, 1);
 
@@ -193,6 +210,8 @@ extern int process_simulate(context *curr_proc) {
             preempt |= cur != NULL && proc->state == PROC_READY &&
                        actual_priority(cur) > actual_priority(proc);
         }
+
+        // unlocking the blocked queue
         pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
 
         /* Step 2: Update current running process
@@ -212,14 +231,22 @@ extern int process_simulate(context *curr_proc) {
         /* Step 3: Select next ready process to run if none are running
          * Be sure to keep track of how long it waited in the ready queue
          */
+        // putting lock for the ready queue so that it is not accessed concurrently
+        // otherwise the code will fail as we are trying to remove from a null queue
+        // putting the lock before the if statement since the if statement is peeking in the queue
+        // and if there is concurrent access to the queue then the !prio_q_empty(ready) might
+        // give you true but be false as some other thread deleted the process
         pthread_mutex_lock(&processes[curr_proc->node - 1].ready_mutex);
         if (cur == NULL && !prio_q_empty(ready)) {
+
+            // added locks around so that removing from the queue can be done safely
             cur = prio_q_remove(ready);
             cur->wait_time += processes[curr_proc->node-1].time - cur->enqueue_time;
             cpu_quantum = processes[cur->node-1].quantum;
             cur->state = PROC_RUNNING;
             print_process(cur);
         }
+        // unlocking the ready queue
         pthread_mutex_unlock(&processes[curr_proc->node - 1].ready_mutex);
 
         /* next clock tick
