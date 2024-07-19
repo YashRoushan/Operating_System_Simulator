@@ -190,7 +190,6 @@ extern int process_simulate(context *curr_proc) {
             /* Move from blocked and reinsert into appropriate queue
              */
             prio_q_remove(blocked);
-//            printf("removed from blocked %d\n", proc->node);
             insert_in_queue(proc, 1);
 
             /* preemption is necessary if a process is running, and it has lower priority than
@@ -233,7 +232,6 @@ extern int process_simulate(context *curr_proc) {
 
         /* next clock tick
          */
-//        time++;
         processes[curr_proc->node-1].time++;
     }
 
