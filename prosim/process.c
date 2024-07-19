@@ -164,7 +164,6 @@ extern int process_simulate(context *curr_proc) {
 
     prio_q_t *ready = processes[curr_proc->node-1].ready;
     prio_q_t *blocked = processes[curr_proc->node-1].blocked;
-    int time = processes[curr_proc->node-1].time;
 
 
     /* We can only stop when all processes are in the finished state
@@ -183,7 +182,7 @@ extern int process_simulate(context *curr_proc) {
              */
             context *proc = prio_q_peek(blocked);
 
-            if (proc->duration > time) {
+            if (proc->duration > processes[curr_proc->node-1].time) {
 //                pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
                 break;
             }
@@ -222,7 +221,8 @@ extern int process_simulate(context *curr_proc) {
             pthread_mutex_lock(&processes[curr_proc->node - 1].ready_mutex);
         if (cur == NULL && !prio_q_empty(ready)) {
             cur = prio_q_remove(ready);
-            cur->wait_time += time - cur->enqueue_time;
+//            printf("%d\n", processes[curr_proc->node-1].time);
+            cur->wait_time += processes[curr_proc->node-1].time - cur->enqueue_time;
             cpu_quantum = processes[cur->node-1].quantum;
             cur->state = PROC_RUNNING;
             pthread_mutex_lock(&finished_mutex_lock);
@@ -233,8 +233,8 @@ extern int process_simulate(context *curr_proc) {
 
         /* next clock tick
          */
-        time++;
-        processes[curr_proc->node-1].time = time;
+//        time++;
+        processes[curr_proc->node-1].time++;
     }
 
     return 1;
