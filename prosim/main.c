@@ -6,23 +6,24 @@
 #include "process.h"
 #include <pthread.h>
 
+//initializing a mutex lock for thread safety during simulating the process execution
 static pthread_mutex_t main_mutex_lock = PTHREAD_MUTEX_INITIALIZER;
 // making a struct to simulate a thread data
 typedef struct {
     int node_id;
-    context **procs;
-//    pthread_mutex_t threadMutex;
-    int num_procs;
+    context **procs;  //  pointers to process contexts managed by the thread.
+    int num_procs;    // number of processes the thread will be running
     int quantum;
 } ThreadData;
 
+// simulating the process assigned to a particular node
 void * simulateProcesses(void *arg){
     ThreadData *threadData = (ThreadData *) arg;
     for (int i = 0; i < threadData->num_procs; ++i) {
-//        pthread_mutex_lock(&threadData[i].threadMutex);
+        // adding locks while simulating the process in process.c to avoid destructive interference
         pthread_mutex_lock(&main_mutex_lock);
         process_simulate(threadData->procs[i]);
-//        pthread_mutex_unlock(&threadData[i].threadMutex);
+        // unlocking
         pthread_mutex_unlock(&main_mutex_lock);
     }
     return NULL;
@@ -40,15 +41,15 @@ int main() {
         return -1;
     }
 
+    // allocating memory for threads and threadData
     pthread_t *threads = malloc(numNodes * sizeof (pthread_t));
-//    pthread_t threads[numNodes];
     ThreadData * thread_data = malloc(numNodes * sizeof (ThreadData));
 
     /* We use an array of pointers to contexts to track the processes.
      */
     context **procs  = calloc(num_procs, sizeof(context *));
-
-    process_init(quantum, numNodes); // we will do this in a separate method
+    // initializing the process
+    process_init(quantum, numNodes);
 
     /* Load and admit each process, if an error occurs, we just give up.
      */
@@ -61,7 +62,7 @@ int main() {
         process_admit(procs[i]);
     }
 
-    /* All the magic happens in here
+    /* All the magic happens in here (Prof Brodsky)
      */
 //    process_simulate();
 
@@ -71,22 +72,20 @@ int main() {
         thread_data[i].procs = procs;
         thread_data[i].num_procs = num_procs;
         thread_data[i].quantum = quantum;
-//        pthread_mutex_init(&thread_data[i].threadMutex, NULL);
+        // creating threads and simulating the processes in parallel
         if(pthread_create(&threads[i], NULL, simulateProcesses, &thread_data[i])){
             fprintf(stderr, "Error in executing threads\n");
             return -1;
         }
     }
 
+    // waiting for all the threads to execute
     for (int i = 0; i < numNodes; ++i) {
         pthread_join(threads[i], NULL);
     }
 
-    /* Output the statistics for processes in order of amdmission.
+    /* Output the statistics for processes in order of admission in the finished priority queue.
      */
-//    for (int i = 0; i < num_procs; i++) {
-//        context_stats(procs[i], stdout);
-//    }
     context_stats(stdout);
 
     free(threads);
@@ -94,5 +93,6 @@ int main() {
     for (int i = 0; i < num_procs; ++i) {
         free(procs[i]);
     }
+    free(procs);
     return 0;
 }
