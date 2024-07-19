@@ -4,10 +4,13 @@
 #include "process.h"
 #include "prio_q.h"
 
+//made a priority queue to store finished processes
 static prio_q_t *finished;
+
+//initializing a mutex lock
 static pthread_mutex_t finished_mutex_lock = PTHREAD_MUTEX_INITIALIZER;
 
-
+// made a struct to make multiple instances of processes
 typedef struct {
     prio_q_t *blocked;
     prio_q_t *ready;
@@ -37,7 +40,9 @@ static char *states[] = {"new", "ready", "running", "blocked", "finished"};
  *   returns 1
  */
 
+// made a static priority queue to store finished processes
 static process * processes;
+
 extern int process_init(int cpu_quantum, int numNodes) {
     /* Set up the queues and store the quantum
      * Assume the queues will be allocated
