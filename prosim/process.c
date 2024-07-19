@@ -21,6 +21,7 @@ static pthread_mutex_t finished_mutex_lock = PTHREAD_MUTEX_INITIALIZER;
 //    int quantum;
 //} process;
 
+// By Dr Brodsky
 enum {
     PROC_NEW = 0,
     PROC_READY,
@@ -29,6 +30,7 @@ enum {
     PROC_FINISHED
 };
 
+// By Dr Brodsky
 static char *states[] = {"new", "ready", "running", "blocked", "finished"};
 
 
@@ -46,7 +48,9 @@ extern int process_init(int cpu_quantum, int numNodes) {
     /* Set up the queues and store the quantum
      * Assume the queues will be allocated
      */
+    // Allocating memory for the array of processes according to the number of nodes
     processes = calloc(numNodes, sizeof (process));
+    // creating a priority queue for finished processes
     finished = prio_q_new();
     assert(processes);
     for (int i = 0; i < numNodes; i++) {
@@ -132,6 +136,8 @@ static void insert_in_queue(context *proc, int next_op) {
 
         // adding processes in the finished queue once it is finished
         prio_q_add(finished, proc, proc_priority);
+
+        // unlocking
         pthread_mutex_unlock(&finished_mutex_lock);
     }
 
@@ -148,6 +154,8 @@ static void insert_in_queue(context *proc, int next_op) {
 extern int process_admit(context *proc) {
     /* Use a static variable to assign each process a unique process id.
      */
+    // code is by Dr Brodsky, I have just used variables from process struct instead of static
+    // variables used in assignment 2
     proc->id = processes[proc->node -1].next_proc_id;
     processes[proc->node -1].next_proc_id++;
     proc->state = PROC_NEW;
@@ -166,7 +174,7 @@ extern int process_simulate(context *curr_proc) {
     context *cur = NULL;
     int cpu_quantum;
 
-    // naming the priority queues in the processes queue so that the rest of
+    // naming the priority queues so that the rest of
     // the code simulate professor Brodsky's code
     prio_q_t *ready = processes[curr_proc->node-1].ready;
     prio_q_t *blocked = processes[curr_proc->node-1].blocked;
@@ -183,7 +191,7 @@ extern int process_simulate(context *curr_proc) {
          *   we will need to preempt the current running process
          */
 
-        // putting lock for the ready queue so that it is not accessed concurrently
+        // putting lock for the blocked queue so that it is not accessed concurrently
         // otherwise the code will fail as we are trying to remove from a null queue
         // putting the lock before the while statement since the while statement is peeking in the queue
         // and if there is concurrent access to the queue then the !prio_q_empty(blocked) might
@@ -259,7 +267,7 @@ extern int process_simulate(context *curr_proc) {
 
 
 /* Outputs aggregate statistics about a process to the specified file.
- * Takes data from the finished priority queue
+ * // Takes data from the finished priority queue
  * @params:
  *   fout: FILE into which the output should be written
  * @returns:
