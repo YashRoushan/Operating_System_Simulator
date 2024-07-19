@@ -175,7 +175,6 @@ extern int process_simulate(context *curr_proc) {
             context *proc = prio_q_peek(blocked);
 
             if (proc->duration > processes[curr_proc->node-1].time) {
-//                pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
                 break;
             }
 
@@ -210,17 +209,16 @@ extern int process_simulate(context *curr_proc) {
         /* Step 3: Select next ready process to run if none are running
          * Be sure to keep track of how long it waited in the ready queue
          */
-        pthread_mutex_lock(&processes[curr_proc->node - 1].ready_mutex);
+//        pthread_mutex_lock(&processes[curr_proc->node - 1].ready_mutex);
         pthread_mutex_lock(&processes[curr_proc->node -1].blocked_mutex);
         if (cur == NULL && !prio_q_empty(ready)) {
             cur = prio_q_remove(ready);
-//            printf("%d\n", processes[curr_proc->node-1].time);
             cur->wait_time += processes[curr_proc->node-1].time - cur->enqueue_time;
             cpu_quantum = processes[cur->node-1].quantum;
             cur->state = PROC_RUNNING;
             print_process(cur);
         }
-        pthread_mutex_unlock(&processes[curr_proc->node - 1].ready_mutex);
+//        pthread_mutex_unlock(&processes[curr_proc->node - 1].ready_mutex);
         pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
 
         /* next clock tick
