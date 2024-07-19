@@ -17,9 +17,9 @@ typedef struct {
 
 void * simulateProcesses(void *arg){
     ThreadData *threadData = (ThreadData *) arg;
-    //for (int i = 0; i < threadData->num_procs; ++i) {
-        process_simulate(threadData->procs[0]);
-
+    for (int i = 0; i < threadData->num_procs; ++i) {
+        process_simulate(threadData->procs[i]);
+    }
     return NULL;
 }
 
