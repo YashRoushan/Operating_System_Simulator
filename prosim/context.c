@@ -1,15 +1,15 @@
 //
 // Created by Alex Brodsky on 2023-04-02.
-//
+// (This file is exactly the same, I have just shifted the context_stats method to process.c)
+
 
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include "context.h"
-#include "pthread.h"
 
 static const char *OPS [] = {"HALT", "DOOP", "LOOP", "END", "BLOCK", NULL};
-static pthread_mutex_t context_mutex_lock = PTHREAD_MUTEX_INITIALIZER;
+
 /* PUSH, POP, and PEEK macros to manipulate the stack in the process context.
  */
 #define PUSH(s,v) (*(s++) = v)
@@ -175,18 +175,5 @@ extern int context_cur_op(context *cur) {
     return cur->code[cur->ip].op;
 }
 
-/* Outputs aggregate statistics about a process to the specified file.
- * @params:
- *   cur: pointer to process context
- *   fout: FILE into which the output should be written
- * @returns:
- *   none
- */
-//extern void context_stats(context *cur, FILE *fout) {
-//    pthread_mutex_lock(&context_mutex_lock);
-//    int totalTime = cur->doop_time + cur->wait_time + cur->block_time;
-//    fprintf(fout,"| %5.5d | Proc %2.2d.%2.2d | Run %d, Block %d, Wait %d\n",totalTime, cur->node, cur->id,
-//            cur->doop_time, cur->block_time, cur->wait_time);
-//    pthread_mutex_unlock(&context_mutex_lock);
-//}
+
 

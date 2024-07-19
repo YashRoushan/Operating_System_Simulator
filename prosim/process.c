@@ -231,6 +231,14 @@ extern int process_simulate(context *curr_proc) {
     return 1;
 }
 
+
+/* Outputs aggregate statistics about a process to the specified file.
+ * Takes data from the finished priority queue
+ * @params:
+ *   fout: FILE into which the output should be written
+ * @returns:
+ *   none
+ */
 extern void context_stats( FILE *fout) {
     while(!prio_q_empty(finished)){
         context * cur = prio_q_remove(finished);
