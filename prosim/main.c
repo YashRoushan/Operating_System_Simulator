@@ -79,9 +79,10 @@ int main() {
 
     /* Output the statistics for processes in order of amdmission.
      */
-    for (int i = 0; i < num_procs; i++) {
-        context_stats(procs[i], stdout);
-    }
+//    for (int i = 0; i < num_procs; i++) {
+//        context_stats(procs[i], stdout);
+//    }
+    context_stats(stdout);
 
     free(threads);
     free(thread_data);

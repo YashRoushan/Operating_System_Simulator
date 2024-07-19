@@ -45,7 +45,7 @@ extern int process_init(int cpu_quantum, int numNodes) {
     processes = calloc(numNodes, sizeof (process));
     finished = prio_q_new();
     assert(processes);
-    for (int i = 0; i < numNodes; ++i) {
+    for (int i = 0; i < numNodes; i++) {
         processes[i].quantum = cpu_quantum;
         processes[i].blocked = prio_q_new();
         processes[i].ready = prio_q_new();
@@ -117,8 +117,11 @@ static void insert_in_queue(context *proc, int next_op) {
         proc->duration += processes[proc->node -1].time;
         prio_q_add(processes[proc->node-1].blocked, proc, proc->duration);
     } else {
+        pthread_mutex_lock(&finished_mutex_lock);
         proc->state = PROC_FINISHED;
-        prio_q_add(finished, proc, actual_priority(proc));
+        int proc_priority = (processes[proc->node -1].time * 10000) + (proc->node * 100) + proc->id;
+        prio_q_add(finished, proc, proc_priority);
+        pthread_mutex_unlock(&finished_mutex_lock);
     }
     print_process(proc);
 }
@@ -215,9 +218,7 @@ extern int process_simulate(context *curr_proc) {
             cur->wait_time += processes[curr_proc->node-1].time - cur->enqueue_time;
             cpu_quantum = processes[cur->node-1].quantum;
             cur->state = PROC_RUNNING;
-            pthread_mutex_lock(&finished_mutex_lock);
             print_process(cur);
-            pthread_mutex_unlock(&finished_mutex_lock);
         }
         pthread_mutex_unlock(&processes[curr_proc->node - 1].ready_mutex);
         pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
@@ -228,4 +229,13 @@ extern int process_simulate(context *curr_proc) {
     }
 
     return 1;
+}
+
+extern void context_stats( FILE *fout) {
+    while(!prio_q_empty(finished)){
+        context * cur = prio_q_remove(finished);
+    int totalTime = cur->doop_time + cur->wait_time + cur->block_time;
+    fprintf(fout,"| %5.5d | Proc %2.2d.%2.2d | Run %d, Block %d, Wait %d\n",totalTime, cur->node, cur->id,
+            cur->doop_time, cur->block_time, cur->wait_time);
+    }
 }

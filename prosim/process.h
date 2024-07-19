@@ -34,4 +34,5 @@ extern int process_admit(context *proc);
  */
 extern int process_simulate(context *proc);
 
+extern void context_stats(FILE *fout);
 #endif //PROSIM_PROCESS_H

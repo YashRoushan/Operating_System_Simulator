@@ -182,11 +182,11 @@ extern int context_cur_op(context *cur) {
  * @returns:
  *   none
  */
-extern void context_stats(context *cur, FILE *fout) {
-    pthread_mutex_lock(&context_mutex_lock);
-    int totalTime = cur->doop_time + cur->wait_time + cur->block_time;
-    fprintf(fout,"| %5.5d | Proc %2.2d.%2.2d | Run %d, Block %d, Wait %d\n",totalTime, cur->node, cur->id,
-            cur->doop_time, cur->block_time, cur->wait_time);
-    pthread_mutex_unlock(&context_mutex_lock);
-}
+//extern void context_stats(context *cur, FILE *fout) {
+//    pthread_mutex_lock(&context_mutex_lock);
+//    int totalTime = cur->doop_time + cur->wait_time + cur->block_time;
+//    fprintf(fout,"| %5.5d | Proc %2.2d.%2.2d | Run %d, Block %d, Wait %d\n",totalTime, cur->node, cur->id,
+//            cur->doop_time, cur->block_time, cur->wait_time);
+//    pthread_mutex_unlock(&context_mutex_lock);
+//}
 
