@@ -11,10 +11,10 @@
 
 // made a struct to make multiple instances of processes in the scheduler
 typedef struct {
-    prio_q_t *blocked;
-    prio_q_t *ready;
-    pthread_mutex_t blocked_mutex;
-    pthread_mutex_t ready_mutex;
+    prio_q_t *blocked; // blocked priority queue
+    prio_q_t *ready;   // ready priority queue
+    pthread_mutex_t blocked_mutex;  // lock for blocked priority queue
+    pthread_mutex_t ready_mutex;    // lock for ready priority queue
     int time;
     int next_proc_id;
     int quantum;
