@@ -167,7 +167,6 @@ extern int process_simulate(context *curr_proc) {
          * If any of the unblocked processes have higher priority than current running process
          *   we will need to preempt the current running process
          */
-        pthread_mutex_lock(&processes[curr_proc->node -1].ready_mutex);
         pthread_mutex_lock(&processes[curr_proc->node -1].blocked_mutex);
         while (!prio_q_empty(blocked)) {
             /* We can stop ff process at head of queue should not be unblocked
@@ -189,7 +188,6 @@ extern int process_simulate(context *curr_proc) {
             preempt |= cur != NULL && proc->state == PROC_READY &&
                        actual_priority(cur) > actual_priority(proc);
         }
-        pthread_mutex_unlock(&processes[curr_proc->node -1].ready_mutex);
         pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
 
         /* Step 2: Update current running process
@@ -209,8 +207,7 @@ extern int process_simulate(context *curr_proc) {
         /* Step 3: Select next ready process to run if none are running
          * Be sure to keep track of how long it waited in the ready queue
          */
-//        pthread_mutex_lock(&processes[curr_proc->node - 1].ready_mutex);
-        pthread_mutex_lock(&processes[curr_proc->node -1].blocked_mutex);
+        pthread_mutex_lock(&processes[curr_proc->node - 1].ready_mutex);
         if (cur == NULL && !prio_q_empty(ready)) {
             cur = prio_q_remove(ready);
             cur->wait_time += processes[curr_proc->node-1].time - cur->enqueue_time;
@@ -218,8 +215,7 @@ extern int process_simulate(context *curr_proc) {
             cur->state = PROC_RUNNING;
             print_process(cur);
         }
-//        pthread_mutex_unlock(&processes[curr_proc->node - 1].ready_mutex);
-        pthread_mutex_unlock(&processes[curr_proc->node -1].blocked_mutex);
+        pthread_mutex_unlock(&processes[curr_proc->node - 1].ready_mutex);
 
         /* next clock tick
          */
